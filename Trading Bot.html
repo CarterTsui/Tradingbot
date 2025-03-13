@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Stock Alert Webpage (React + Babel)</title>
+
+    <!-- REACT & BABEL CDN SCRIPTS -->
+    <!-- React (Development Build) -->
+    <script
+      src="https://unpkg.com/react@17/umd/react.development.js"
+      crossorigin
+    ></script>
+    <!-- ReactDOM (Development Build) -->
+    <script
+      src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+      crossorigin
+    ></script>
+    <!-- Axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js" crossorigin></script>
+    <!-- Babel for in-browser transpilation of JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+
+  <body>
+    <!-- Our React App will be rendered into this root element -->
+    <div id="root"></div>
+
+    <!-- Main React Code -->
+    <script type="text/babel">
+      // Import React hooks from the global React
+      const { useState, useEffect } = React;
+
+      function StockAlert() {
+        const [ticker, setTicker] = useState('');
+        const [indicators, setIndicators] = useState({});
+        const [alertMethod, setAlertMethod] = useState('email');
+
+        // Fetch data from TAAPI
+        const fetchIndicators = async () => {
+          if (!ticker) return;
+          try {
+            // Replace 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbHVlIjoiNjdkMjMyZGE4MDZmZjE2NTFlMzZiMGY2IiwiaWF0IjoxNzQxODI4ODkxLCJleHAiOjMzMjQ2MjkyODkxfQ.4s9n_1y8QBaJUUZRkV6Qe_mM8OoSdtdB28e5WRNic1Y' with an actual TAAPI key
+            const { data } = await axios.get('https://api.taapi.io/bulk', {
+              params: {
+                secret: 'YOUR_TAAPI_API_KEY',
+                exchange: 'binance',
+                symbol: ticker,
+                intervals: '2h', // Check data every 2 hours
+                indicators: 'rsi,macd,bbands,sma,ema',
+              },
+            });
+            setIndicators(data.data);
+            checkAlerts(data.data);
+          } catch (error) {
+            console.error('Error fetching data:', error);
+          }
+        };
+
+        // Run fetchIndicators every 2 hours
+        useEffect(() => {
+          const interval = setInterval(fetchIndicators, 7200000); // 2h in ms
+          return () => clearInterval(interval);
+        }, [ticker]);
+
+        // Logic to determine buy/sell signals
+        const checkAlerts = (data) => {
+          if (!data || !data.rsi || !data.macd) return;
+
+          const rsiValue = data.rsi.value;
+          const macdValue = data.macd.valueMACD;
+          let message = '';
+
+          // Example: Simple RSI + MACD logic
+          if (rsiValue < 30 && macdValue > 0) {
+            message = 'Buy Signal: RSI is oversold and MACD is positive.';
+          } else if (rsiValue > 70 && macdValue < 0) {
+            message = 'Sell Signal: RSI is overbought and MACD is negative.';
+          }
+
+          if (message) {
+            sendAlert(message);
+          }
+        };
+
+        // Stub function where you'd integrate Email/SMS/Push
+        const sendAlert = (message) => {
+          console.log(`Sending ${alertMethod} alert: ${message}`);
+          alert(`ALERT: ${message}`);
+        };
+
+        return (
+          <div style={{ padding: '1rem' }}>
+            <h1>Stock Alert Webpage</h1>
+            <input
+              type="text"
+              placeholder="Enter Stock Ticker (e.g. BTC/USDT)"
+              style={{ border: '1px solid #ccc', padding: '0.5rem' }}
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+            />
+            <select
+              style={{ marginLeft: '1rem' }}
+              onChange={(e) => setAlertMethod(e.target.value)}
+              value={alertMethod}
+            >
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+              <option value="push">Push Notification</option>
+            </select>
+            <button
+              style={{
+                marginLeft: '1rem',
+                padding: '0.5rem 1rem',
+                background: 'blue',
+                color: '#fff',
+                border: 'none',
+              }}
+              onClick={fetchIndicators}
+            >
+              Check Now
+            </button>
+
+            {/* Display indicators if available */}
+            {indicators.rsi && (
+              <div style={{ marginTop: '1rem' }}>
+                <p>RSI: {indicators.rsi.value}</p>
+                <p>MACD: {indicators.macd.valueMACD}</p>
+                <p>SMA: {indicators.sma.value}</p>
+                <p>EMA: {indicators.ema.value}</p>
+                <p>
+                  Bollinger Bands: Upper {indicators.bbands.valueUpperBand},
+                  Lower {indicators.bbands.valueLowerBand}
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // Render StockAlert component into #root
+      ReactDOM.render(<StockAlert />, document.getElementById('root'));
+    </script>
+  </body>
+</html>
